@@ -1,0 +1,16 @@
+#!/bin/bash
+
+OUTPUT=`cat /proc/sys/fs/file-nr 2>/dev/null`
+ret=$?
+
+if [ ${ret} -ne 0 ]; then
+    echo "unable to access /proc/sys/fs/file-nr"
+    exit 3
+fi
+
+allocated=`echo ${OUTPUT} | cut -f1 -d " "`
+allocated_free=`echo ${OUTPUT} | cut -f2 -d " "`
+maximum=`echo ${OUTPUT} | cut -f3 -d " "`
+
+echo $(printf %.2f $(echo "scale=2;((${allocated} - ${allocated_free}) * 100) / ${maximum}" | bc))
+echo "open=$((allocated - allocated_free)) max=${maximum}"
