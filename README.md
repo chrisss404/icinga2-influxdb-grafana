@@ -1,20 +1,22 @@
 
 # Setup guide for Icinga2 with Grafana integration employing InfluxDB
 
-## This guide uses Debian 9 "Stretch" as base
+## This guide uses Debian 10 "Buster" as base
 
 ```bash
 cat /etc/apt/sources.list
 
-deb http://cdn.debian.net/debian/ stretch main
-deb-src http://cdn.debian.net/debian/ stretch main
+deb http://deb.debian.org/debian buster main
+deb-src http://deb.debian.org/debian buster main
 
-deb http://security.debian.org/debian-security stretch/updates main
-deb-src http://security.debian.org/debian-security stretch/updates main
+deb http://security.debian.org/ buster/updates main
+deb-src http://security.debian.org/ buster/updates main
 
-# stretch-updates, previously known as 'volatile'
-deb http://cdn.debian.net/debian/ stretch-updates main
-deb-src http://cdn.debian.net/debian/ stretch-updates main
+deb http://deb.debian.org/debian buster-updates main
+deb-src http://deb.debian.org/debian buster-updates main
+
+deb http://deb.debian.org/debian buster-backports main
+deb-src http://deb.debian.org/debian buster-backports main
 ```
 
 ## Setup Icinga2
@@ -24,8 +26,8 @@ deb-src http://cdn.debian.net/debian/ stretch-updates main
 ```bash
 wget -O - https://packages.icinga.com/icinga.key | apt-key add -
 
-echo "deb http://packages.icinga.com/debian icinga-stretch main" > /etc/apt/sources.list.d/icinga.list
-echo "deb-src http://packages.icinga.com/debian icinga-stretch main" >> /etc/apt/sources.list.d/icinga.list
+echo "deb http://packages.icinga.com/debian icinga-buster main" > /etc/apt/sources.list.d/icinga.list
+echo "deb-src http://packages.icinga.com/debian icinga-buster main" >> /etc/apt/sources.list.d/icinga.list
 ```
 
 #### Get packages
@@ -38,7 +40,7 @@ apt-get install icinga2 monitoring-plugins
 #### Check service status
 
 ```bash
-systemctl status icinga2
+systemctl status icinga2.service
 
 ● icinga2.service - Icinga host/service/network monitoring system
    Loaded: loaded (/lib/systemd/system/icinga2.service; enabled; vendor preset: enabled)
@@ -50,7 +52,7 @@ systemctl status icinga2
 #### Get packages
 
 ```bash
-apt-get install icinga2-ido-mysql mysql-server mysql-client
+apt-get install icinga2-ido-mysql mariadb-server mariadb-client
 ```
 Questions during installation:
 * Enable Icinga 2's ido-mysql feature? `No`
@@ -101,20 +103,21 @@ vim /etc/icinga2/features-available/ido-mysql.conf
 #### Get packages
 
 ```bash
-apt-get install icingaweb2 php php-intl php-imagick php-gd php-mysql php-curl php-mbstring
+apt-get install apache2 icingacli icingaweb2 icingaweb2-module-monitoring \
+                php php-intl php-imagick php-gd php-mysql php-curl php-mbstring
 ```
 
 #### Set PHP default timezone 
 
 ```bash
-vim /etc/php/7.0/apache2/php.ini
+vim /etc/php/7.3/apache2/php.ini
 ```
 ```diff
 -;date.timezone =
 +date.timezone = Europe/Paris
 ```
 ```bash
-systemctl restart apache2
+systemctl restart apache2.service
 ```
 
 #### Create database and user
@@ -137,7 +140,7 @@ mysql -p icingaweb2 < /usr/share/icingaweb2/etc/schema/mysql.schema.sql
 
 ```bash
 icinga2 feature enable command
-systemctl restart icinga2
+systemctl restart icinga2.service
 ```
 
 #### Create setup token
@@ -168,7 +171,6 @@ Database Name: `icingaweb2`
 Username: `icingaweb2`  
 Password: `your-icingaweb2-pwd`  
 Character Set: `utf8`  
-Persistent: `False`  
 Use SSL: `False`  
 *Next*  
   
@@ -180,7 +182,8 @@ Password: `your-admin-pwd`
 Repeat password: `your-admin-pwd`  
 *Next*  
   
-Show Stacktraces: `Yes`  
+Show Stacktraces: `Yes`
+Show Application State Messages: `Yes`    
 User Preference Storage Type: `Database`  
 Logging Type: `Syslog`  
 Logging Level: `Error`  
@@ -200,7 +203,6 @@ Database Name: `icinga2`
 Username: `icinga2`  
 Password: `your-icinga2-pwd`  
 Character Set: `utf8`  
-Persistent: `False`  
 Use SSL: `False`  
 *Next*  
   
@@ -214,22 +216,27 @@ Protected Custom Variables: `*pw*,*pass*,community`
 
 ## Setup graphing module Grafana
 
+#### Add source
+
+```bash
+wget -O - https://packages.grafana.com/gpg.key | apt-key add -
+
+echo "deb https://packages.grafana.com/oss/deb stable main" > /etc/apt/sources.list.d/grafana.list
+```
+
 #### Get packages
 
 ```bash
-apt-get install influxdb influxdb-client adduser libfontconfig
-
-wget https://s3-us-west-2.amazonaws.com/grafana-releases/release/grafana_4.4.3_amd64.deb
-dpkg -i grafana_4.4.3_amd64.deb
-rm  grafana_4.4.3_amd64.deb
+apt-get update
+apt-get install grafana influxdb influxdb-client
 ```
 
 #### Enable and start Grafana service
 
 ```bash
 systemctl daemon-reload
-systemctl enable grafana-server
-systemctl start grafana-server
+systemctl enable grafana-server.service
+systemctl start grafana-server.service
 ```
 
 #### Create database and user
@@ -292,7 +299,7 @@ vim /etc/icinga2/features-enabled/influxdb.conf
 +  }
 ```
 ```bash
-systemctl restart icinga2
+systemctl restart icinga2.service
 ```
 
 #### Navigate to Grafana web interface
@@ -305,12 +312,12 @@ Password: `admin`
 
 Add Datasource: http://your-public-host.name:3000/datasources/new?gettingstarted
 
-Name: `Influx`  
+Name: `InfluxDB`  
 Type: `InfluxDB`  
 Default: `Yes`  
   
 Url: `http://127.0.0.1:8086`  
-Access: `proxy`  
+Access: `Server (Default)`  
   
 Database: `icinga2`  
 User: `icinga2`  
@@ -318,7 +325,7 @@ Password: `your-icinga2-pwd`
 
 #### Import Grafana dashboard
 
-Import Dashboard: http://your-public-host.name:3000/dashboard/new?editview=import&orgId=1
+Import Dashboard: http://your-public-host.name:3000/dashboard/import
 
 Paste JSON from https://raw.githubusercontent.com/Mikesch-mp/icingaweb2-module-grafana/v1.1.8/dashboards/influxdb/base-metrics.json
 
@@ -328,8 +335,8 @@ Paste JSON from https://raw.githubusercontent.com/Mikesch-mp/icingaweb2-module-g
 
 ```bash
 cd /usr/share/icingaweb2/modules
-wget -qO- https://github.com/Mikesch-mp/icingaweb2-module-grafana/archive/v1.1.8.tar.gz | tar xvz
-mv icingaweb2-module-grafana-1.1.8 grafana
+wget -qO- https://github.com/Mikesch-mp/icingaweb2-module-grafana/archive/v1.3.5.tar.gz | tar xvz
+mv icingaweb2-module-grafana-1.3.5 grafana
 mkdir /etc/icingaweb2/modules/grafana
 ```
 
@@ -356,18 +363,13 @@ vim /etc/grafana/grafana.ini
 -;enabled = false
 +enabled = true
 ```
-```bash
-systemctl restart grafana-server
-```
-
-#### Remove scrollbars from iframe
-
-```bash
-vim /usr/share/icingaweb2/modules/grafana/library/Grafana/ProvidedHook/Grapher.php
-```
 ```diff
--                $iframehtml = '<iframe src="%s://%s/dashboard-solo/%s/%s?var-hostname=%s&var-service=%s%s&panelId=%s&orgId=%s&theme=%s&from=now-%s&to=now" alt="%s" height="%d" frameBorder="0" style="width: 100%%;"></iframe>';
-+                $iframehtml = '<script>$(".module-grafana").parent().parent().data("icingaRefresh", 30);</script><iframe src="%s://%s/dashboard-solo/%s/%s?var-hostname=%s&var-service=%s%s&panelId=%s&orgId=%s&theme=%s&from=now-%s&to=now" alt="%s" height="%d" frameBorder="0" scrolling="no" style="width: 100%%;"></iframe>';
+# set to true if you want to allow browsers to render Grafana in a <frame>, <iframe>, <embed> or <object>. default is false.
+-;allow_embedding = false
++allow_embedding = true
+```
+```bash
+systemctl restart grafana-server.service
 ```
 
 #### Enable Icinga Web Grafana module
@@ -389,7 +391,7 @@ vim /etc/icinga2/conf.d/services.conf
 ```
 
 ```bash
-systemctl restart icinga2
+systemctl restart icinga2.service
 ```
 
 ![Image of Icinga Web Interface with Base Grafana Graphs](screens/base-icingaweb2.png)
@@ -405,7 +407,7 @@ apt-get install snmp snmpd libsnmp-dev
 #### Configure and setup user
 
 ```bash
-systemctl stop snmpd
+systemctl stop snmpd.service
 net-snmp-config --create-snmpv3-user -ro -A "your-secret-auth-pwd" -X "your-secret-priv-pwd" -a SHA -x AES snmp
 ```
 
@@ -434,7 +436,7 @@ vim /etc/snmp/snmpd.conf
 +#linkUpDownNotifications  yes
 ```
 ```bash
-systemctl start snmpd
+systemctl start snmpd.service
 ```
 
 #### Add custom check to SNMP
@@ -459,7 +461,7 @@ vim /etc/snmp/snmpd.conf
 + extend open_files /usr/local/lib/nagios/plugins/check_open_files
 ```
 ```bash
-systemctl restart snmpd
+systemctl restart snmpd.service
 ```
 
 #### Test it
@@ -506,7 +508,7 @@ vim /etc/icingaweb2/modules/grafana/graphs.ini
 ```
 
 ```bash
-systemctl restart icinga2
+systemctl restart icinga2.service
 ```
 
 #### Get a list of network interfaces
@@ -519,7 +521,7 @@ In case you experience issues with the network interface (`Unknown interface eth
 
 #### Import Grafana SNMP dashboard
 
-Import Dashboard: http://your-public-host.name:3000/dashboard/new?editview=import&orgId=1
+Import Dashboard: http://your-public-host.name:3000/dashboard/import
 
 Use the [grafana-snmp-dashboard](configs/grafana-snmp-dashboard.json).
 
