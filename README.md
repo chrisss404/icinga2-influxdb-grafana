@@ -182,8 +182,8 @@ Password: `your-admin-pwd`
 Repeat password: `your-admin-pwd`  
 *Next*  
   
-Show Stacktraces: `Yes`
-Show Application State Messages: `Yes`    
+Show Stacktraces: `Yes`  
+Show Application State Messages: `Yes`  
 User Preference Storage Type: `Database`  
 Logging Type: `Syslog`  
 Logging Level: `Error`  
